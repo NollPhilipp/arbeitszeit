@@ -989,7 +989,7 @@ function renderArchiv(){
       var vd=document.createElement('div');vd.className='kw-auftrag';
       vd.style.cssText='display:flex;align-items:flex-start;gap:8px;';
       var vtxt=document.createElement('div');vtxt.style.flex='1';
-      var kwsLabel=v.kws&&v.kws.length?'<span style="font-size:0.62rem;color:var(--muted);margin-left:6px;">('+v.kws.map(function(k){return'KW '+k;}).join(', ')+')</span>':'';
+      var kwsLabel=v.kws&&v.kws.length?'<span style="font-size:0.62rem;color:var(--muted);margin-left:6px;">(KW '+v.kws.join(', ')+')</span>':'';
       vtxt.innerHTML='<div class="kw-aufnr">Vorgang</div><div class="kw-aufnr-val" style="color:var(--accent4)">'+esc(v.vorgangsnr)+'</div><div class="kw-desc">'+esc(v.beschreibung||'\u2013')+'</div><div class="kw-total">'+minToHM(v.total)+kwsLabel+'</div>';
       vd.appendChild(vtxt);
       var vdel=document.createElement('button');vdel.className='del-btn';vdel.textContent='\u2715';
