@@ -153,7 +153,7 @@ button:active{transform:scale(0.97);opacity:0.85;}
 
       <div style="color:var(--accent);font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">&#128203; Tab: Arbeitswoche</div>
       <div style="color:var(--muted);margin-bottom:6px;">Hier tr&auml;gst du deine Arbeitszeiten ein:</div>
-      <div style="color:var(--muted);margin-bottom:4px;">&#10102; <b style="color:var(--text);">Auftragsnr.</b> (8-stellig) und <b style="color:var(--text);">Vorgangsnr.</b> (4-stellig) eingeben &rarr; archivierte Nummern erscheinen als Vorschlag</div>
+      <div style="color:var(--muted);margin-bottom:4px;">&#10102; <b style="color:var(--text);">Auftragsnr.</b> (8-stellig) und <b style="color:var(--text);">Vorgangsnr.</b> (4-stellig) eingeben &rarr; erfasste Nummern erscheinen als Vorschlag</div>
       <div style="color:var(--muted);margin-bottom:4px;">&#10103; <b style="color:var(--text);">Datum</b> antippen &rarr; Datumswahl &ouml;ffnet sich</div>
       <div style="color:var(--muted);margin-bottom:4px;">&#10104; <b style="color:var(--text);">Von / Bis</b> Zeiten eintragen</div>
       <div style="color:var(--muted);margin-bottom:4px;">&#10105; Bei mehreren Zeitbl&ouml;cken pro Auftrag: <b style="color:var(--text);">+ Weiterer Zeitblock</b></div>
@@ -214,7 +214,7 @@ button:active{transform:scale(0.97);opacity:0.85;}
       <button class="reset-btn" onclick="exportText()">&#128228; Als Text kopieren</button>
       <div class="divider"></div>
       <button class="archive-btn" onclick="wocheArchivieren()">&#128193; Woche abschliessen &amp; erfassen</button>
-      <button class="clear-all-btn" onclick="clearAllAuftraege()">&#128465; Alle Auftr&#228;ge l&#246;schen</button>
+
     </div>
   </div>
 </div>
@@ -229,7 +229,7 @@ button:active{transform:scale(0.97);opacity:0.85;}
   </div>
 </div>
 <script>
-function toMin(v){var p=v.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
+function toMin(v){if(!v||!/^\d{1,2}:\d{2}$/.test(v))return NaN;var p=v.split(':');return parseInt(p[0])*60+parseInt(p[1]);}
 function toHHMM(m){var h=Math.floor(m/60)%24,n=m%60;return pad(h)+':'+pad(n);}
 function minToHM(m){var h=Math.floor(m/60),n=m%60;return h+'h '+pad(n)+'min';}
 function pad(n){return String(n).padStart(2,'0');}
@@ -282,14 +282,14 @@ function save(){try{localStorage.setItem(SK,JSON.stringify({auftraege:auftraege,
 function load(){try{var d=localStorage.getItem(SK);if(d){var p=JSON.parse(d);auftraege=p.auftraege||[];aufId=p.aufId||0;zeitId=p.zeitId||0;}}catch(e){}}
 
 function addAuftrag(){aufId++;auftraege.push({id:aufId,auftragsnr:'',vorgangsnr:'',beschreibung:'',zeiten:[]});save();renderAll();addZeit(aufId);}
-function removeAuftrag(aid){if(!confirm('Auftrag wirklich l\u00f6schen?'))return;auftraege=auftraege.filter(function(a){return a.id!==aid;});save();renderAll();}
+function removeAuftrag(aid){if(!confirm('Auftrag wirklich l\u00f6schen?'))return;auftraege=auftraege.filter(function(a){return a.id!==aid;});save();renderAll();renderKWTitle();}
 function addZeit(aid){
   var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;
-  zeitId++;var n=new Date();
-  a.zeiten.push({id:zeitId,datum:n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate()),von:pad(n.getHours())+':'+pad(n.getMinutes()),bis:''});
+  zeitId++;
+  a.zeiten.push({id:zeitId,datum:'',von:'',bis:''});
   save();renderAll();
 }
-function removeZeit(aid,zid){if(!confirm('Eintrag wirklich l\u00f6schen?'))return;var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;a.zeiten=a.zeiten.filter(function(z){return z.id!==zid;});save();renderAll();}
+function removeZeit(aid,zid){if(!confirm('Eintrag wirklich l\u00f6schen?'))return;var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;a.zeiten=a.zeiten.filter(function(z){return z.id!==zid;});save();renderAll();renderKWTitle();}
 function checkDuplicateAuftrag(aid){
   var a=auftraege.find(function(a){return a.id===aid;});
   if(!a||!a.auftragsnr||!a.vorgangsnr)return;
@@ -331,16 +331,18 @@ function getAuftraegeKW(){
 }
 function updZD(aid,zid,v){
   if(v){
-    var existing=getAuftraegeKW();
-    // Find the current datum of this entry to exclude it from check
-    var a=auftraege.find(function(a){return a.id===aid;});
-    var z=a?a.zeiten.find(function(z){return z.id===zid;}):null;
-    var oldDatum=z?z.datum:'';
-    if(existing&&oldDatum!==v){
+    var a0=auftraege.find(function(a){return a.id===aid;});
+    var z0=a0?a0.zeiten.find(function(z){return z.id===zid;}):null;
+    var oldDatum=z0?z0.datum:'';
+    // Only check KW if there are OTHER dated entries besides this one
+    var otherDates=[];
+    auftraege.forEach(function(a){a.zeiten.forEach(function(z){if(z.datum&&z.id!==zid)otherDates.push(z.datum);});});
+    otherDates.sort();
+    if(otherDates.length){
+      var refKw=getKW(otherDates[0]);
       var newKw=getKW(v);
-      if(newKw!==existing.kw){
-        alert('⚠️ Das Datum '+dk(v)+' gehört zu KW '+newKw+'.\n\nDie bestehenden Einträge gehören zu KW '+existing.kw+'. Bitte ein Datum aus KW '+existing.kw+' wählen oder zuerst die aktuelle Woche archivieren und die Aufträge löschen.');
-        // Reset the date picker
+      if(newKw!==refKw){
+        alert('⚠️ Das Datum '+dk(v)+' gehört zu KW '+newKw+'.\n\nDie bestehenden Einträge gehören zu KW '+refKw+'. Bitte ein Datum aus KW '+refKw+' wählen oder zuerst die Arbeitswoche abschliessen & erfassen und die Einträge löschen.');
         var el=document.getElementById('di-'+zid);if(el)el.value=oldDatum||'';
         var b=document.getElementById('dbtn-'+zid);if(b){b.textContent=oldDatum?dk(oldDatum):'Datum';b.className=oldDatum?'datum-btn':'datum-btn empty';}
         return;
@@ -355,7 +357,7 @@ function renderKWTitle(){
   var titleEl=document.getElementById('kwTitle');
   if(!titleEl)return;
   var info=getAuftraegeKW();
-  titleEl.textContent=info?'KW '+info.kw:'';
+  titleEl.textContent=info?'Arbeitswoche KW '+info.kw:'';
   titleEl.style.display=info?'block':'none';
 }
 function openDatum(zid){var el=document.getElementById('di-'+zid);if(!el)return;try{if(el.showPicker)el.showPicker();else el.click();}catch(e){el.click();}}
@@ -513,10 +515,10 @@ function renderAll(){
       var db=document.createElement('button');db.type='button';db.id='dbtn-'+z.id;db.className=z.datum?'datum-btn':'datum-btn empty';db.textContent=z.datum?dk(z.datum):'Datum';db.setAttribute('data-zid',z.id);db.onclick=function(){openDatum(parseInt(this.getAttribute('data-zid')));};zfd.appendChild(db);row.appendChild(zfd);
       // von
       var zfv=document.createElement('div');zfv.className='zf';var zlv=document.createElement('label');zlv.textContent='Von';zfv.appendChild(zlv);
-      var iv=document.createElement('input');iv.type='time';iv.value=z.von||'';iv.setAttribute('data-aid',a.id);iv.setAttribute('data-zid',z.id);iv.oninput=function(){updZ(parseInt(this.getAttribute('data-aid')),parseInt(this.getAttribute('data-zid')),'von',this.value);};zfv.appendChild(iv);row.appendChild(zfv);
+      var iv=document.createElement('input');iv.type='time';iv.value=z.von||'';iv.setAttribute('data-aid',a.id);iv.setAttribute('data-zid',z.id);iv.oninput=iv.onchange=function(){var v=this.value;if(!v||/^\d{1,2}:\d{2}$/.test(v))updZ(parseInt(this.getAttribute('data-aid')),parseInt(this.getAttribute('data-zid')),'von',v);};zfv.appendChild(iv);row.appendChild(zfv);
       // bis
       var zfb=document.createElement('div');zfb.className='zf';var zlb2=document.createElement('label');zlb2.textContent='Bis';zfb.appendChild(zlb2);
-      var ib=document.createElement('input');ib.type='time';ib.value=z.bis||'';ib.setAttribute('data-aid',a.id);ib.setAttribute('data-zid',z.id);ib.oninput=function(){updZ(parseInt(this.getAttribute('data-aid')),parseInt(this.getAttribute('data-zid')),'bis',this.value);};zfb.appendChild(ib);row.appendChild(zfb);
+      var ib=document.createElement('input');ib.type='time';ib.value=z.bis||'';ib.setAttribute('data-aid',a.id);ib.setAttribute('data-zid',z.id);ib.oninput=ib.onchange=function(){var v=this.value;if(!v||/^\d{1,2}:\d{2}$/.test(v))updZ(parseInt(this.getAttribute('data-aid')),parseInt(this.getAttribute('data-zid')),'bis',v);};zfb.appendChild(ib);row.appendChild(zfb);
       en.appendChild(row);zl.appendChild(en);
     });
     div.appendChild(zl);
@@ -545,7 +547,7 @@ function berechnenAuftraege(){
     if(!a.vorgangsnr||a.vorgangsnr.length!==4){err.textContent='Auftrag '+(i+1)+': Vorgangsnummer muss 4-stellig sein.';err.classList.add('visible');return;}
     for(var j=0;j<a.zeiten.length;j++){
       var z=a.zeiten[j];
-      if(!z.von||!z.bis){err.textContent='Auftrag '+(i+1)+', Eintrag '+(j+1)+': Bitte Von- und Bis-Zeit eingeben.';err.classList.add('visible');return;}
+      if(!z.von||!z.bis||!/^\d{1,2}:\d{2}$/.test(z.von)||!/^\d{1,2}:\d{2}$/.test(z.bis)){err.textContent='Auftrag '+(i+1)+', Eintrag '+(j+1)+': Bitte Von- und Bis-Zeit vollst\u00e4ndig eingeben.';err.classList.add('visible');return;}
       if(toMin(z.bis)<=toMin(z.von)){err.textContent='Auftrag '+(i+1)+', Eintrag '+(j+1)+': Bis-Zeit muss nach Von-Zeit liegen.';err.classList.add('visible');return;}
     }
   }
@@ -603,7 +605,7 @@ function saveArchiv(){try{localStorage.setItem(AK,JSON.stringify(archiv));}catch
 function getKW(iso){var d=new Date(iso);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-(d.getDay()||7)-3);var w=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w)/86400000-3+(w.getDay()||7))/7);}
 
 function wocheArchivieren(){
-  if(!auftraege.length){alert('Keine Auftr\u00e4ge zum Archivieren.');return;}
+  if(!auftraege.length){alert('Keine Eintr\u00e4ge zum Erfassen.');return;}
   var groups=buildGroups(),dates=[];
   auftraege.forEach(function(a){a.zeiten.forEach(function(z){if(z.datum)dates.push(z.datum);});});
   dates.sort();
@@ -611,14 +613,14 @@ function wocheArchivieren(){
   var kw=getKW(ref),jahr=new Date(ref).getFullYear(),monat=new Date(ref).getMonth();
   var existing=archiv.filter(function(e){return e.kw===kw&&e.jahr===jahr;});
   if(existing.length){
-    alert('\u26a0\ufe0f KW '+kw+' ('+jahr+') ist bereits archiviert!\n\nIm Tab \u201eErfasste Wochen\u201c \u2192 KW '+kw+' aufklappen \u2192 \u270f\ufe0f Bearbeiten:\nZeitbl\u00f6cke k\u00f6nnen dort hinzugef\u00fcgt, bearbeitet oder gel\u00f6scht werden.');
+    alert('\u26a0\ufe0f KW '+kw+' ('+jahr+') ist bereits erfasst!\n\nIm Tab \u201eErfasste Wochen\u201c \u2192 KW '+kw+' aufklappen \u2192 \u270f\ufe0f Bearbeiten:\nZeitbl\u00f6cke k\u00f6nnen dort hinzugef\u00fcgt, bearbeitet oder gel\u00f6scht werden.');
     return;
   }
-  if(!confirm('KW '+kw+' archivieren?\nDie Eintr\u00e4ge bleiben danach noch aktiv.'))return;
+  if(!confirm('Arbeitswoche KW '+kw+' abschliessen und erfassen?'))return;
   archiv.push({id:Date.now(),kw:kw,jahr:jahr,monat:monat,datum_von:vd,datum_bis:bd,gruppen:Object.values(groups)});
   saveArchiv();
   if(confirm('\u2713 Arbeitswoche KW '+kw+' wurde erfasst!\n\nEintr\u00e4ge jetzt l\u00f6schen und Arbeitswoche f\u00fcr neue Eintr\u00e4ge leeren?')){
-    auftraege=[];aufId=0;zeitId=0;save();renderAll();
+    auftraege=[];aufId=0;zeitId=0;save();renderAll();document.getElementById('result3').innerHTML='';document.getElementById('errorMsg3').innerHTML='';
   }
 }
 
@@ -779,7 +781,7 @@ function openAddAuftragToArchiv(eid){
           if(eRef){
             var newKw=getKW(newVal);
             if(newKw!==eRef.kw){
-              alert('⚠️ Das Datum '+dk(newVal)+' gehört zu KW '+newKw+', nicht zu KW '+eRef.kw+'.\n\nBitte das Datum ändern oder die KW '+newKw+' im Archiv bearbeiten.');
+              alert('⚠️ Das Datum '+dk(newVal)+' gehört zu KW '+newKw+', nicht zu KW '+eRef.kw+'.\n\nBitte das Datum ändern oder die KW '+newKw+' unter \'Erfasste Wochen\' bearbeiten.');
               this.value=z2.datum||'';
               dlbl2.textContent=z2.datum?dk2(z2.datum):'—';
               return;
@@ -854,7 +856,7 @@ function renderArchivEditRow(gsec, g, ei, eid){
       if(eRef){
         var newKw=getKW(newVal);
         if(newKw!==eRef.kw){
-          alert('⚠️ Das Datum '+dk(newVal)+' gehört zu KW '+newKw+', nicht zu KW '+eRef.kw+'.\n\nBitte das Datum ändern oder die KW '+newKw+' im Archiv bearbeiten.');
+          alert('⚠️ Das Datum '+dk(newVal)+' gehört zu KW '+newKw+', nicht zu KW '+eRef.kw+'.\n\nBitte das Datum ändern oder die KW '+newKw+' unter \'Erfasste Wochen\' bearbeiten.');
           this.value=g.eintraege[ei].datum||'';
           return;
         }
@@ -968,11 +970,12 @@ function renderArchiv(){
   var byAuf={};
   archiv.forEach(function(e){e.gruppen.forEach(function(g){
     if(!byAuf[g.auftragsnr])byAuf[g.auftragsnr]={auftragsnr:g.auftragsnr,total:0,vorgaenge:{}};
-    if(!byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr])byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr]={vorgangsnr:g.vorgangsnr,beschreibung:g.beschreibung,total:0};
+    if(!byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr])byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr]={vorgangsnr:g.vorgangsnr,beschreibung:g.beschreibung,total:0,kws:[]};
     byAuf[g.auftragsnr].total+=g.total;byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr].total+=g.total;
+    if(e.kw&&byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr].kws.indexOf(e.kw)===-1)byAuf[g.auftragsnr].vorgaenge[g.vorgangsnr].kws.push(e.kw);
   });});
   var ues=document.createElement('div');ues.className='monat-block';
-  var ueh=document.createElement('div');ueh.className='monat-header';ueh.textContent='\u2139\ufe0f Gesamt\u00fcbersicht';ues.appendChild(ueh);
+  var ueh=document.createElement('div');ueh.className='monat-header';ueh.textContent='Gesamt\u00fcbersicht';ues.appendChild(ueh);
   Object.values(byAuf).forEach(function(auf){
     var k=auf.auftragsnr;
     var blk=document.createElement('div');blk.className='kw-block';
@@ -985,7 +988,8 @@ function renderArchiv(){
       var vd=document.createElement('div');vd.className='kw-auftrag';
       vd.style.cssText='display:flex;align-items:flex-start;gap:8px;';
       var vtxt=document.createElement('div');vtxt.style.flex='1';
-      vtxt.innerHTML='<div class="kw-aufnr">Vorgang</div><div class="kw-aufnr-val" style="color:var(--accent4)">'+esc(v.vorgangsnr)+'</div><div class="kw-desc">'+esc(v.beschreibung||'\u2013')+'</div><div class="kw-total">'+minToHM(v.total)+'</div>';
+      var kwsLabel=v.kws&&v.kws.length?'<span style="font-size:0.62rem;color:var(--muted);margin-left:6px;">('+v.kws.map(function(k){return'KW '+k;}).join(', ')+')</span>':'';
+      vtxt.innerHTML='<div class="kw-aufnr">Vorgang</div><div class="kw-aufnr-val" style="color:var(--accent4)">'+esc(v.vorgangsnr)+'</div><div class="kw-desc">'+esc(v.beschreibung||'\u2013')+'</div><div class="kw-total">'+minToHM(v.total)+kwsLabel+'</div>';
       vd.appendChild(vtxt);
       var vdel=document.createElement('button');vdel.className='del-btn';vdel.textContent='\u2715';
       vdel.style.cssText='margin-top:4px;flex-shrink:0;';
@@ -1049,12 +1053,12 @@ function importDaten(event){
     try{
       var data=JSON.parse(e.target.result);
       if(typeof data.archiv==='undefined'&&typeof data.auftraege==='undefined'){alert('Ungültige Datei.');return;}
-      var msg='Daten importieren?\n\nDies \u00fcberschreibt alle aktuellen Auftr\u00e4ge und das Archiv!';
+      var msg='Daten importieren?\n\nDies \u00fcberschreibt alle Eintr\u00e4ge im Tab \u201eArbeitswoche\u201c und alle erfassten Wochen!';
       if(data.exportDatum)msg+='\n\nBackup vom: '+new Date(data.exportDatum).toLocaleString('de-CH');
       if(!confirm(msg))return;
       if(data.auftraege){auftraege=data.auftraege;aufId=data.aufId||0;zeitId=data.zeitId||0;save();renderAll();}
       if(data.archiv){archiv=data.archiv;saveArchiv();}
-      alert('✓ Import erfolgreich!\n'+archiv.length+' archivierte Wochen\n'+auftraege.length+' aktive Aufträge');
+      alert('✓ Import erfolgreich!\n'+archiv.length+' erfasste Wochen\n'+auftraege.length+' Einträge in Arbeitswoche');
       renderArchiv();
     }catch(ex){alert('Fehler beim Importieren: '+ex.message);}
   };
