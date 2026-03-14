@@ -300,6 +300,11 @@ function addAuftrag(){aufId++;auftraege.push({id:aufId,auftragsnr:'',vorgangsnr:
 function removeAuftrag(aid){if(!confirm('Auftrag wirklich l\u00f6schen?'))return;auftraege=auftraege.filter(function(a){return a.id!==aid;});save();renderAll();renderKWTitle();}
 function addZeit(aid){
   var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;
+  var sapKey='check_'+a.auftragsnr+'_'+a.vorgangsnr;
+  if(a.auftragsnr&&a.vorgangsnr&&localStorage.getItem(sapKey)==='1'){
+    alert('\u26a0\ufe0f Dieser Auftrag ist als \u201ein SAP eingetragen\u201c markiert.\n\nZum Bearbeiten den Haken in der Auswertung wieder entfernen.');
+    return;
+  }
   zeitId++;
   a.zeiten.push({id:zeitId,datum:'',von:'',bis:''});
   save();renderAll();
@@ -660,6 +665,8 @@ function wocheArchivieren(){
   saveArchiv();
   if(confirm('\u2713 Arbeitswoche KW '+kw+' wurde erfasst!\n\nEintr\u00e4ge jetzt l\u00f6schen und Arbeitswoche f\u00fcr neue Eintr\u00e4ge leeren?')){
     auftraege=[];aufId=0;zeitId=0;save();renderAll();document.getElementById('result3').innerHTML='';document.getElementById('errorMsg3').innerHTML='';document.getElementById('result3').classList.remove('visible');localStorage.removeItem('auswertung_result');localStorage.removeItem('auswertung_visible');var bb=document.getElementById('btnBerechnen');if(bb)bb.textContent='BERECHNEN & AUSWERTEN';
+    // Clear all SAP check keys
+    var keysToRemove=[];for(var ki=0;ki<localStorage.length;ki++){var k=localStorage.key(ki);if(k&&k.indexOf('check_')===0)keysToRemove.push(k);}keysToRemove.forEach(function(k){localStorage.removeItem(k);});
   }
 }
 
