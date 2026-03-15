@@ -297,7 +297,7 @@ function save(){try{localStorage.setItem(SK,JSON.stringify({auftraege:auftraege,
 function load(){try{var d=localStorage.getItem(SK);if(d){var p=JSON.parse(d);auftraege=p.auftraege||[];aufId=p.aufId||0;zeitId=p.zeitId||0;}}catch(e){}}
 
 function addAuftrag(){aufId++;auftraege.push({id:aufId,auftragsnr:'',vorgangsnr:'',beschreibung:'',zeiten:[]});save();renderAll();addZeit(aufId);}
-function removeAuftrag(aid){if(!confirm('Auftrag wirklich l\u00f6schen?'))return;auftraege=auftraege.filter(function(a){return a.id!==aid;});save();renderAll();renderKWTitle();}
+function removeAuftrag(aid){if(!confirm('Auftrag wirklich l\u00f6schen?'))return;auftraege=auftraege.filter(function(a){return a.id!==aid;});save();renderAll();renderKWTitle();document.getElementById('result3').innerHTML='';document.getElementById('errorMsg3').innerHTML='';document.getElementById('result3').classList.remove('visible');localStorage.removeItem('auswertung_result');localStorage.removeItem('auswertung_visible');var bb=document.getElementById('btnBerechnen');if(bb)bb.innerHTML='BERECHNEN &amp; AUSWERTEN';}
 function addZeit(aid){
   var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;
   var sapKey='check_'+a.auftragsnr+'_'+a.vorgangsnr;
@@ -309,7 +309,7 @@ function addZeit(aid){
   a.zeiten.push({id:zeitId,datum:'',von:'',bis:''});
   save();renderAll();
 }
-function removeZeit(aid,zid){if(!confirm('Eintrag wirklich l\u00f6schen?'))return;var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;a.zeiten=a.zeiten.filter(function(z){return z.id!==zid;});save();renderAll();renderKWTitle();}
+function removeZeit(aid,zid){if(!confirm('Eintrag wirklich l\u00f6schen?'))return;var a=auftraege.find(function(a){return a.id===aid;});if(!a)return;a.zeiten=a.zeiten.filter(function(z){return z.id!==zid;});save();renderAll();renderKWTitle();document.getElementById('result3').innerHTML='';document.getElementById('errorMsg3').innerHTML='';document.getElementById('result3').classList.remove('visible');localStorage.removeItem('auswertung_result');localStorage.removeItem('auswertung_visible');var bb=document.getElementById('btnBerechnen');if(bb)bb.innerHTML='BERECHNEN &amp; AUSWERTEN';}
 function checkDuplicateAuftrag(aid){
   var a=auftraege.find(function(a){return a.id===aid;});
   if(!a||!a.auftragsnr||!a.vorgangsnr)return;
@@ -638,7 +638,11 @@ function exportText(){
 function clearAllAuftraege(){
   if(!confirm('Wirklich alle Auftr\u00e4ge l\u00f6schen?'))return;
   auftraege=[];aufId=0;zeitId=0;save();renderAll();
+  document.getElementById('result3').innerHTML='';
+  document.getElementById('errorMsg3').innerHTML='';
   document.getElementById('result3').classList.remove('visible');
+  localStorage.removeItem('auswertung_result');localStorage.removeItem('auswertung_visible');
+  var bb=document.getElementById('btnBerechnen');if(bb)bb.textContent='BERECHNEN & AUSWERTEN';
   document.getElementById('savedBadge').style.display='none';
 }
 
