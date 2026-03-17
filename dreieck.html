@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dreiecksrechner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Merriweather:wght@700&display=swap');
+
+  :root {
+    --bg: #f4f6f9;
+    --white: #fff;
+    --border: #dde2ea;
+    --text: #1a2035;
+    --muted: #8896b0;
+    --accent: #2563eb;
+    --col-a: #cc2200;
+    --col-b: #1a56c4;
+    --col-c: #1a8a3a;
+    --col-alpha: #c05621;
+    --col-beta: #6b46c1;
+    --col-gamma: #0e7490;
+    --col-calc: #64748b;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1.4rem 1rem 3rem;
+  }
+
+  h1 { font-family: 'Merriweather', serif; font-size: 1.45rem; margin-bottom: 0.15rem; }
+  .subtitle { color: var(--muted); font-size: 0.8rem; margin-bottom: 1.2rem; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    gap: 1.1rem;
+    max-width: 1020px;
+    margin: 0 auto;
+  }
+  @media(max-width:680px){ .layout{ grid-template-columns:1fr; } }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 1rem 1.1rem;
+  }
+
+  .section-label {
+    font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.55rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+
+  .hint-text {
+    font-size: 0.7rem; color: var(--muted);
+    margin-bottom: 0.85rem; line-height: 1.45;
+  }
+  .hint-text strong { color: var(--text); }
+
+  /* ── Compact field rows ── */
+  .field-row {
+    display: grid;
+    grid-template-columns: 68px 1fr 22px 18px;
+    align-items: center;
+    margin-bottom: 0.38rem;
+    gap: 0.35rem;
+  }
+
+  .field-label {
+    font-size: 0.78rem; font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .field-wrap {
+    display: flex; align-items: center;
+    border: 1.5px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .field-wrap:focus-within { border-color: var(--accent); }
+  .field-wrap.filled  { background: #fffbe6; border-color: #d4a017; }
+  .field-wrap.computed { background: #f0fdf4; }
+  .field-wrap.err { border-color: #dc2626; background: #fef2f2; }
+
+  .field-input {
+    flex: 1; min-width: 0;
+    height: 28px;
+    border: none;
+    font-family: 'Lato', monospace;
+    font-size: 0.85rem;
+    padding: 0 0.45rem;
+    color: var(--text);
+    background: transparent;
+    outline: none;
+  }
+  .field-input.computed { color: var(--col-calc); }
+  .field-input[readonly] { cursor: default; }
+
+  .field-unit {
+    font-size: 0.7rem; color: var(--muted);
+    padding-right: 0.4rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .clear-btn {
+    width: 18px; height: 18px;
+    border-radius: 50%; border: none;
+    background: var(--border); color: var(--muted);
+    font-size: 0.6rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.12s;
+  }
+  .clear-btn:hover { background: #fca5a5; color: #fff; }
+  .clear-btn.hidden { visibility: hidden; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 0.6rem 0; }
+
+  .status-box {
+    font-size: 0.72rem; border-radius: 6px;
+    padding: 0.4rem 0.6rem; margin-top: 0.6rem; display: none;
+  }
+  .status-box.error { background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; display:block; }
+  .status-box.info  { background:#f0f9ff; border:1px solid #93c5fd; color:#1d4ed8; display:block; }
+  .status-box.ok    { background:#f0fdf4; border:1px solid #86efac; color:#16a34a; display:block; }
+
+  .counter {
+    font-size: 0.68rem; background: var(--accent); color: #fff;
+    border-radius: 10px; padding: 0.05rem 0.45rem; display: none;
+  }
+  .counter.show { display: inline-block; }
+
+  /* ── Viz panel ── */
+  .viz-card { display: flex; flex-direction: column; }
+
+  .viz-toolbar {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: auto;
+  }
+  .viz-toolbar span {
+    font-size: 0.66rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin-right: 0.2rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tool-btn {
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 5px; color: var(--text);
+    font-family: 'Lato', sans-serif;
+    font-size: 0.75rem; font-weight: 700;
+    padding: 0.28rem 0.55rem;
+    cursor: pointer; transition: all 0.12s;
+    display: flex; align-items: center; gap: 0.25rem;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .tool-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tool-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+  #main-svg {
+    width: 100%; flex: 1;
+    min-height: 340px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    display: block;
+  }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.6rem;
+  }
+  .leg { display:flex; align-items:center; gap:0.3rem; font-size:0.69rem; color:var(--muted); }
+  .leg-line { width:18px; height:3px; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<h1>Dreiecksrechner</h1>
+<p class="subtitle">Beliebiges Dreieck ABC — einfach 3 bekannte Werte eingeben</p>
+
+<div class="layout">
+
+  <!-- LEFT -->
+  <div class="card">
+    <div class="section-label">
+      Drei Werte eingeben
+      <span class="counter" id="counter">0 / 3</span>
+    </div>
+    <p class="hint-text">Gib genau <strong>3 Werte</strong> ein (Seiten in mm oder Winkel in °).</p>
+
+    <div class="field-row">
+      <div class="field-label" style="color:var(--col-a)">Seite a:</div>
+      <div class="field-wrap" id="wrap-a">
+        <input class="field-input" type="number" id="f-a" step="any" min="0">
+        <span class="field-unit">mm</span>
+      </div>
+      <button class="clear-btn hidden" id="clr-a" onclick="clearField('a')">✕</button>
+    </div>
+    <div class="field-row">
+      <div class="field-label" style="color:var(--col-b)">Seite b:</div>
+      <div class="field-wrap" id="wrap-b">
+        <input class="field-input" type="number" id="f-b" step="any" min="0">
+        <span class="field-unit">mm</span>
+      </div>
+      <button class="clear-btn hidden" id="clr-b" onclick="clearField('b')">✕</button>
+    </div>
+    <div class="field-row">
+      <div class="field-label" style="color:var(--col-c)">Seite c:</div>
+      <div class="field-wrap" id="wrap-c">
+        <input class="field-input" type="number" id="f-c" step="any" min="0">
+        <span class="field-unit">mm</span>
+      </div>
+      <button class="clear-btn hidden" id="clr-c" onclick="clearField('c')">✕</button>
+    </div>
+
+    <hr class="divider">
+
+    <div class="field-row">
+      <div class="field-label" style="color:var(--col-alpha)">Winkel α:</div>
+      <div class="field-wrap" id="wrap-alpha">
+        <input class="field-input" type="number" id="f-alpha" step="any" min="0" max="180">
+        <span class="field-unit">°</span>
+      </div>
+      <button class="clear-btn hidden" id="clr-alpha" onclick="clearField('alpha')">✕</button>
+    </div>
+    <div class="field-row">
+      <div class="field-label" style="color:var(--col-beta)">Winkel β:</div>
+      <div class="field-wrap" id="wrap-beta">
+        <input class="field-input" type="number" id="f-beta" step="any" min="0" max="180">
+        <span class="field-unit">°</span>
+      </div>
+      <button class="clear-btn hidden" id="clr-beta" onclick="clearField('beta')">✕</button>
+    </div>
+    <div class="field-row">
+      <div class="field-label" style="color:var(--col-gamma)">Winkel γ:</div>
+      <div class="field-wrap" id="wrap-gamma">
+        <input class="field-input" type="number" id="f-gamma" step="any" min="0" max="180">
+        <span class="field-unit">°</span>
+      </div>
+      <button class="clear-btn hidden" id="clr-gamma" onclick="clearField('gamma')">✕</button>
+    </div>
+
+    <div id="status" class="status-box"></div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="card viz-card">
+    <div class="section-label">Interaktives Dreieck</div>
+
+    <div class="viz-toolbar">
+      <span>Ansicht:</span>
+      <button class="tool-btn" onclick="rotate(-90)" title="90° gegen Uhrzeigersinn drehen">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M3 8a5 5 0 1 0 5-5"/><polyline points="5,1 3,3 5,5"/>
+        </svg>
+        −90°
+      </button>
+      <button class="tool-btn" onclick="rotate(90)" title="90° im Uhrzeigersinn drehen">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M13 8a5 5 0 1 1-5-5"/><polyline points="11,1 13,3 11,5"/>
+        </svg>
+        +90°
+      </button>
+      <button class="tool-btn" onclick="mirror('h')" title="Horizontal spiegeln">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <line x1="8" y1="2" x2="8" y2="14"/><polyline points="2,5 5,8 2,11"/><polyline points="14,5 11,8 14,11"/>
+        </svg>
+        ↔ H
+      </button>
+      <button class="tool-btn" onclick="mirror('v')" title="Vertikal spiegeln">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <line x1="2" y1="8" x2="14" y2="8"/><polyline points="5,2 8,5 11,2"/><polyline points="5,14 8,11 11,14"/>
+        </svg>
+        ↕ V
+      </button>
+      <button class="tool-btn" onclick="resetView()" title="Zurücksetzen">↺ Reset</button>
+    </div>
+
+    <svg id="main-svg" viewBox="0 0 560 380" xmlns="http://www.w3.org/2000/svg">
+      <g id="grid-g"></g>
+      <g id="tri-g"></g>
+      <text id="placeholder" x="280" y="190" text-anchor="middle"
+        fill="#c0c9d8" font-family="Lato,sans-serif" font-size="14">
+        3 Werte eingeben …
+      </text>
+    </svg>
+
+    <div class="legend">
+      <div class="leg"><div class="leg-line" style="background:var(--col-a)"></div>Seite a</div>
+      <div class="leg"><div class="leg-line" style="background:var(--col-b)"></div>Seite b</div>
+      <div class="leg"><div class="leg-line" style="background:var(--col-c)"></div>Seite c</div>
+      <div class="leg"><div class="leg-line" style="background:var(--border);border-top:2px dashed #aaa;height:0"></div>berechnet</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Trig ────────────────────────────────────────────────────────
+const D2R = Math.PI/180, R2D = 180/Math.PI;
+const sind  = d => Math.sin(d*D2R);
+const cosd  = d => Math.cos(d*D2R);
+const asind = v => Math.asin(Math.max(-1,Math.min(1,v)))*R2D;
+const acosd = v => Math.acos(Math.max(-1,Math.min(1,v)))*R2D;
+const fmt   = (v,d=4) => parseFloat(v.toFixed(d)).toString();
+
+const IDS = ['a','b','c','alpha','beta','gamma'];
+
+// ── View transform state ─────────────────────────────────────────
+let viewRot = 0;   // degrees, multiple of 90
+let viewFlipH = false;
+let viewFlipV = false;
+let lastResult = null;
+let lastGiven  = null;
+
+function rotate(deg) { viewRot = ((viewRot + deg) % 360 + 360) % 360; redraw(); }
+function mirror(axis) {
+  if(axis==='h') viewFlipH = !viewFlipH;
+  else           viewFlipV = !viewFlipV;
+  redraw();
+}
+function resetView() { viewRot=0; viewFlipH=false; viewFlipV=false; redraw(); }
+function redraw() { if(lastResult) drawTriangle(lastResult, lastGiven); }
+
+// ── Field helpers ────────────────────────────────────────────────
+function getVal(id) {
+  const v = parseFloat(document.getElementById('f-'+id).value);
+  return isNaN(v) ? null : v;
+}
+function getGiven() {
+  const g = {};
+  IDS.forEach(id => { const v=getVal(id); if(v!==null) g[id]=v; });
+  return g;
+}
+function countFilled() {
+  return IDS.filter(id => document.getElementById('f-'+id).value.trim() !== '').length;
+}
+
+function setComputed(id, val) {
+  const el  = document.getElementById('f-'+id);
+  const wrap= document.getElementById('wrap-'+id);
+  if(el.value.trim() !== '') return;
+  el.value = fmt(val);
+  el.classList.add('computed');
+  el.setAttribute('readonly','');
+  wrap.classList.add('computed');
+  document.getElementById('clr-'+id).classList.remove('hidden');
+}
+
+function clearAllComputed() {
+  IDS.forEach(id => {
+    const el   = document.getElementById('f-'+id);
+    const wrap = document.getElementById('wrap-'+id);
+    if(el.hasAttribute('readonly')) {
+      el.value = '';
+      el.classList.remove('computed','filled');
+      el.removeAttribute('readonly');
+      wrap.classList.remove('computed','filled','err');
+      document.getElementById('clr-'+id).classList.add('hidden');
+    }
+  });
+}
+
+function clearField(id) {
+  const el   = document.getElementById('f-'+id);
+  const wrap = document.getElementById('wrap-'+id);
+  el.value = '';
+  el.classList.remove('computed','filled');
+  el.removeAttribute('readonly');
+  wrap.classList.remove('computed','filled','err');
+  document.getElementById('clr-'+id).classList.add('hidden');
+  onInput();
+}
+
+// ── Solver ───────────────────────────────────────────────────────
+function err(msg) { return {error: msg}; }
+
+function chk(r) {
+  if(!r||r.error) return r;
+  if(r.a<=0||r.b<=0||r.c<=0) return err('Berechnung ergibt ungültige Seite (≤ 0).');
+  if(r.alpha<=0||r.beta<=0||r.gamma<=0) return err('Berechnung ergibt ungültigen Winkel (≤ 0°).');
+  return r;
+}
+
+function solve(g) {
+  for(const [k,v] of Object.entries(g)) {
+    if(v<=0) return err(`${k} muss größer als 0 sein.`);
+    if(['alpha','beta','gamma'].includes(k) && v>=180)
+      return err(`Winkel ${k} muss kleiner als 180° sein.`);
+  }
+
+  const angGiven = ['alpha','beta','gamma'].filter(k=>g[k]!=null);
+  if(angGiven.length>=2) {
+    const sum = angGiven.reduce((s,k)=>s+g[k],0);
+    if(angGiven.length===3 && Math.abs(sum-180)>0.01) return err('Die drei Winkel ergeben nicht 180°.');
+    if(angGiven.length===2 && sum>=180) return err('Summe der zwei Winkel muss < 180° sein.');
+  }
+
+  let {a,b,c,alpha:al,beta:be,gamma:ga} = g;
+
+  // Complete third angle
+  if(al!=null&&be!=null&&ga==null) ga=180-al-be;
+  if(al!=null&&ga!=null&&be==null) be=180-al-ga;
+  if(be!=null&&ga!=null&&al==null) al=180-be-ga;
+
+  // SSS
+  if(a!=null&&b!=null&&c!=null) {
+    if(a+b<=c||a+c<=b||b+c<=a) return err('Dreiecksungleichung verletzt (längste Seite ≥ Summe der anderen).');
+    al = acosd((b*b+c*c-a*a)/(2*b*c));
+    be = acosd((a*a+c*c-b*b)/(2*a*c));
+    ga = 180-al-be;
+    return {a,b,c,alpha:al,beta:be,gamma:ga};
+  }
+
+  // SWS variants
+  if(a!=null&&b!=null&&ga!=null) { c=Math.sqrt(a*a+b*b-2*a*b*cosd(ga)); al=acosd((b*b+c*c-a*a)/(2*b*c)); be=180-al-ga; return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(a!=null&&c!=null&&be!=null) { b=Math.sqrt(a*a+c*c-2*a*c*cosd(be)); al=acosd((b*b+c*c-a*a)/(2*b*c)); ga=180-al-be; return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(b!=null&&c!=null&&al!=null) { a=Math.sqrt(b*b+c*c-2*b*c*cosd(al)); be=acosd((a*a+c*c-b*b)/(2*a*c)); ga=180-al-be; return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+
+  // SSW opposite
+  function ssw(s1,s2,angOpp,nameS1) {
+    const sinOther = s2*sind(angOpp)/s1;
+    if(Math.abs(sinOther)>1) return err(`Kein Dreieck möglich (sin > 1).`);
+    return asind(sinOther);
+  }
+
+  if(a!=null&&b!=null&&al!=null) { const be2=ssw(a,b,al); if(be2.error) return be2; be=be2; ga=180-al-be; if(ga<=0) return err('γ ≤ 0°.'); c=a*sind(ga)/sind(al); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(a!=null&&b!=null&&be!=null) { const al2=ssw(b,a,be); if(al2.error) return al2; al=al2; ga=180-al-be; if(ga<=0) return err('γ ≤ 0°.'); c=a*sind(ga)/sind(al); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(a!=null&&c!=null&&al!=null) { const ga2=ssw(a,c,al); if(ga2.error) return ga2; ga=ga2; be=180-al-ga; if(be<=0) return err('β ≤ 0°.'); b=a*sind(be)/sind(al); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(a!=null&&c!=null&&ga!=null) { const al2=ssw(c,a,ga); if(al2.error) return al2; al=al2; be=180-al-ga; if(be<=0) return err('β ≤ 0°.'); b=a*sind(be)/sind(al); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(b!=null&&c!=null&&be!=null) { const ga2=ssw(b,c,be); if(ga2.error) return ga2; ga=ga2; al=180-be-ga; if(al<=0) return err('α ≤ 0°.'); a=b*sind(al)/sind(be); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+  if(b!=null&&c!=null&&ga!=null) { const be2=ssw(c,b,ga); if(be2.error) return be2; be=be2; al=180-be-ga; if(al<=0) return err('α ≤ 0°.'); a=b*sind(al)/sind(be); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+
+  // WSW / WWS (all three angles + one side known after completion above)
+  if(al!=null&&be!=null&&ga!=null) {
+    if(a!=null) { b=a*sind(be)/sind(al); c=a*sind(ga)/sind(al); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+    if(b!=null) { a=b*sind(al)/sind(be); c=b*sind(ga)/sind(be); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+    if(c!=null) { a=c*sind(al)/sind(ga); b=c*sind(be)/sind(ga); return chk({a,b,c,alpha:al,beta:be,gamma:ga}); }
+    return err('Mit nur Winkeln ist das Dreieck nicht eindeutig (Maßstab fehlt).');
+  }
+
+  return null;
+}
+
+// ── onInput ──────────────────────────────────────────────────────
+function onInput() {
+  clearAllComputed();
+  setStatus('');
+
+  IDS.forEach(id => {
+    const el   = document.getElementById('f-'+id);
+    const wrap = document.getElementById('wrap-'+id);
+    const clr  = document.getElementById('clr-'+id);
+    if(el.value.trim()!=='' && !el.hasAttribute('readonly')) {
+      wrap.classList.add('filled');
+      el.classList.add('filled');
+      clr.classList.remove('hidden');
+    } else if(el.value.trim()==='') {
+      wrap.classList.remove('filled','err');
+      el.classList.remove('filled','err');
+      clr.classList.add('hidden');
+    }
+  });
+
+  const n = countFilled();
+  const counter = document.getElementById('counter');
+  counter.textContent = `${n} / 3`;
+  counter.classList.toggle('show', n>0);
+
+  if(n<3) {
+    if(n>0) setStatus(`Noch ${3-n} Wert${3-n>1?'e':''} benötigt.`, 'info');
+    document.getElementById('placeholder').style.display='';
+    document.getElementById('tri-g').innerHTML='';
+    lastResult=null; lastGiven=null;
+    return;
+  }
+
+  const given  = getGiven();
+  const result = solve(given);
+
+  if(!result) { setStatus('Diese Kombination kann nicht eindeutig gelöst werden.','error'); return; }
+  if(result.error) { setStatus(result.error,'error'); return; }
+
+  IDS.forEach(id => { if(given[id]==null) setComputed(id, result[id]); });
+  setStatus('✓ Dreieck berechnet','ok');
+
+  lastResult = result;
+  lastGiven  = given;
+  drawTriangle(result, given);
+}
+
+function setStatus(msg, type='') {
+  const el = document.getElementById('status');
+  el.className = 'status-box'+(type?' '+type:'');
+  el.textContent = msg;
+  if(!msg) el.style.display='none';
+}
+
+IDS.forEach(id => document.getElementById('f-'+id).addEventListener('input', onInput));
+
+// ── Draw ─────────────────────────────────────────────────────────
+function drawTriangle(r, given) {
+  const ns='http://www.w3.org/2000/svg';
+  const W=560, H=380, PAD=72;
+
+  document.getElementById('placeholder').style.display='none';
+  const g = document.getElementById('tri-g');
+  g.innerHTML='';
+
+  // Base coordinates: C origin, B=(a,0), A from gamma
+  const gRad = r.gamma * D2R;
+  let rawC = {x:0, y:0};
+  let rawB = {x:r.a, y:0};
+  let rawA = {x:r.b*Math.cos(gRad), y:r.b*Math.sin(gRad)};
+
+  // Apply rotation (in 90° steps, around centroid)
+  function rotPt(p, deg) {
+    const rd = deg*D2R;
+    return { x: p.x*Math.cos(rd)-p.y*Math.sin(rd), y: p.x*Math.sin(rd)+p.y*Math.cos(rd) };
+  }
+  [rawA,rawB,rawC] = [rawA,rawB,rawC].map(p=>rotPt(p, viewRot));
+
+  // Apply flip
+  if(viewFlipH) [rawA,rawB,rawC] = [rawA,rawB,rawC].map(p=>({x:-p.x, y:p.y}));
+  if(viewFlipV) [rawA,rawB,rawC] = [rawA,rawB,rawC].map(p=>({x:p.x, y:-p.y}));
+
+  // Scale & center
+  const allX=[rawA.x,rawB.x,rawC.x], allY=[rawA.y,rawB.y,rawC.y];
+  const minX=Math.min(...allX), maxX=Math.max(...allX);
+  const minY=Math.min(...allY), maxY=Math.max(...allY);
+  const rW=maxX-minX||1, rH=maxY-minY||1;
+  const usableW=W-PAD*2, usableH=H-PAD*2;
+  const scale=Math.min(usableW/rW, usableH/rH)*0.88;
+
+  function sv(p) {
+    return {
+      x: PAD+(p.x-minX)*scale+(usableW-rW*scale)/2,
+      y: H-PAD-(p.y-minY)*scale-(usableH-rH*scale)/2
+    };
+  }
+
+  const A=sv(rawA), B=sv(rawB), C=sv(rawC);
+
+  // Grid
+  const gg=document.getElementById('grid-g');
+  gg.innerHTML='';
+  for(let x=0;x<=W;x+=40){const l=document.createElementNS(ns,'line');l.setAttribute('x1',x);l.setAttribute('y1',0);l.setAttribute('x2',x);l.setAttribute('y2',H);l.setAttribute('stroke','#e8edf4');l.setAttribute('stroke-width','1');gg.appendChild(l);}
+  for(let y=0;y<=H;y+=40){const l=document.createElementNS(ns,'line');l.setAttribute('x1',0);l.setAttribute('y1',y);l.setAttribute('x2',W);l.setAttribute('y2',y);l.setAttribute('stroke','#e8edf4');l.setAttribute('stroke-width','1');gg.appendChild(l);}
+
+  // Fill
+  const poly=document.createElementNS(ns,'polygon');
+  poly.setAttribute('points',`${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y}`);
+  poly.setAttribute('fill','rgba(37,99,235,0.045)');
+  g.appendChild(poly);
+
+  // Sides: a=BC, b=AC, c=AB
+  const cx=(A.x+B.x+C.x)/3, cy=(A.y+B.y+C.y)/3;
+  const sides=[
+    {p1:B,p2:C, color:'var(--col-a)', key:'a', val:r.a, isGiven:given.a!=null},
+    {p1:A,p2:C, color:'var(--col-b)', key:'b', val:r.b, isGiven:given.b!=null},
+    {p1:A,p2:B, color:'var(--col-c)', key:'c', val:r.c, isGiven:given.c!=null},
+  ];
+
+  sides.forEach(s=>{
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',s.p1.x);line.setAttribute('y1',s.p1.y);
+    line.setAttribute('x2',s.p2.x);line.setAttribute('y2',s.p2.y);
+    line.setAttribute('stroke',s.color);
+    line.setAttribute('stroke-width',s.isGiven?'3':'2');
+    line.setAttribute('stroke-linecap','round');
+    if(!s.isGiven) line.setAttribute('stroke-dasharray','6,3');
+    g.appendChild(line);
+
+    const mx=(s.p1.x+s.p2.x)/2, my=(s.p1.y+s.p2.y)/2;
+    const dx=s.p2.x-s.p1.x, dy=s.p2.y-s.p1.y;
+    const len=Math.sqrt(dx*dx+dy*dy)||1;
+    const nx=-dy/len, ny=dx/len;
+    const dot=(cx-mx)*nx+(cy-my)*ny;
+    const sign=dot>0?1:-1;
+    const lx=mx+sign*nx*18, ly=my+sign*ny*18;
+    svgLabel(g, lx, ly, `${s.key} = ${fmt(s.val,2)} mm`, s.color, s.isGiven);
+  });
+
+  // Angle arcs: alpha@A, beta@B, gamma@C
+  const angles=[
+    {pt:A,p1:B,p2:C, color:'var(--col-alpha)', key:'α', val:r.alpha, isGiven:given.alpha!=null},
+    {pt:B,p1:A,p2:C, color:'var(--col-beta)',  key:'β', val:r.beta,  isGiven:given.beta!=null},
+    {pt:C,p1:A,p2:B, color:'var(--col-gamma)', key:'γ', val:r.gamma, isGiven:given.gamma!=null},
+  ];
+
+  angles.forEach(ang=>{
+    const rv = ang.val<25?18:ang.val<60?24:30;
+    const v1x=ang.p1.x-ang.pt.x, v1y=ang.p1.y-ang.pt.y;
+    const v2x=ang.p2.x-ang.pt.x, v2y=ang.p2.y-ang.pt.y;
+    let a1=Math.atan2(v1y,v1x), a2=Math.atan2(v2y,v2x);
+    let diff=a2-a1;
+    while(diff>Math.PI) diff-=2*Math.PI;
+    while(diff<-Math.PI) diff+=2*Math.PI;
+    a2=a1+diff;
+
+    const sx=ang.pt.x+rv*Math.cos(a1), sy=ang.pt.y+rv*Math.sin(a1);
+    const ex=ang.pt.x+rv*Math.cos(a2), ey=ang.pt.y+rv*Math.sin(a2);
+    const large=Math.abs(diff)>Math.PI?1:0;
+    const sweep=diff>0?1:0;
+
+    if(ang.isGiven) {
+      const fill=document.createElementNS(ns,'path');
+      fill.setAttribute('d',`M${ang.pt.x},${ang.pt.y} L${sx},${sy} A${rv},${rv} 0 ${large},${sweep} ${ex},${ey} Z`);
+      fill.setAttribute('fill',ang.color);fill.setAttribute('opacity','0.15');fill.setAttribute('stroke','none');
+      g.appendChild(fill);
+    }
+    const arc=document.createElementNS(ns,'path');
+    arc.setAttribute('d',`M${sx},${sy} A${rv},${rv} 0 ${large},${sweep} ${ex},${ey}`);
+    arc.setAttribute('fill','none');arc.setAttribute('stroke',ang.color);
+    arc.setAttribute('stroke-width',ang.isGiven?'2':'1.5');
+    if(!ang.isGiven) arc.setAttribute('stroke-dasharray','4,3');
+    g.appendChild(arc);
+
+    const midA=a1+diff/2;
+    const lr=rv+22;
+    svgLabel(g, ang.pt.x+lr*Math.cos(midA), ang.pt.y+lr*Math.sin(midA),
+      `${ang.key} = ${fmt(ang.val,1)}°`, ang.color, ang.isGiven, true);
+  });
+
+  // Corner labels - offset away from triangle center
+  const corners=[
+    {pt:A,label:'A'},{pt:B,label:'B'},{pt:C,label:'C'}
+  ];
+  corners.forEach(co=>{
+    const dx=co.pt.x-cx, dy=co.pt.y-cy;
+    const len=Math.sqrt(dx*dx+dy*dy)||1;
+    const ox=dx/len*18, oy=dy/len*18;
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',co.pt.x+ox);t.setAttribute('y',co.pt.y+oy+4);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-family','Merriweather,serif');
+    t.setAttribute('font-size','14');t.setAttribute('font-weight','700');
+    t.setAttribute('fill','#1a2035');
+    t.textContent=co.label;
+    g.appendChild(t);
+  });
+}
+
+function svgLabel(g, x, y, text, color, bold, small=false) {
+  const ns='http://www.w3.org/2000/svg';
+  const fs=small?11:12;
+  const tw=text.length*6.2+10;
+  const bg=document.createElementNS(ns,'rect');
+  bg.setAttribute('x',x-tw/2);bg.setAttribute('y',y-9);
+  bg.setAttribute('width',tw);bg.setAttribute('height',17);
+  bg.setAttribute('rx',3);bg.setAttribute('fill','rgba(255,255,255,0.93)');
+  g.appendChild(bg);
+  const t=document.createElementNS(ns,'text');
+  t.setAttribute('x',x);t.setAttribute('y',y+4);
+  t.setAttribute('text-anchor','middle');
+  t.setAttribute('font-family','Lato,sans-serif');
+  t.setAttribute('font-size',fs);
+  t.setAttribute('font-weight',bold?'700':'400');
+  t.setAttribute('fill',color);
+  t.textContent=text;
+  g.appendChild(t);
+}
+
+// ── Default ───────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  document.getElementById('f-a').value=70.7;
+  document.getElementById('f-b').value=50;
+  document.getElementById('f-c').value=50;
+  onInput();
+});
+</script>
+</body>
+</html>
